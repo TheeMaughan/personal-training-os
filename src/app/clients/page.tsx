@@ -41,6 +41,7 @@ type FormState = {
   lastName: string;
   email: string;
   dateOfBirth: string;
+  heightFeet: string;
   heightInches: string;
   startingWeight: string;
   goal: string;
@@ -54,6 +55,7 @@ const emptyForm: FormState = {
   lastName: "",
   email: "",
   dateOfBirth: "",
+  heightFeet: "",
   heightInches: "",
   startingWeight: "",
   goal: "",
@@ -123,7 +125,7 @@ export default function ClientsPage() {
         first_name: form.firstName.trim(),
         last_name: form.lastName.trim(),
         date_of_birth: form.dateOfBirth || null,
-        height_inches: form.heightInches ? Number(form.heightInches) : null,
+        height_inches: form.heightFeet || form.heightInches ? (Number(form.heightFeet || 0) * 12 + Number(form.heightInches || 0)) : null,
         starting_weight: form.startingWeight ? Number(form.startingWeight) : null,
         current_weight: form.startingWeight ? Number(form.startingWeight) : null,
         goal: form.goal.trim() || null,
@@ -141,7 +143,8 @@ export default function ClientsPage() {
       await loadClients();
     } catch (error) {
       console.error(error);
-      setMessage("Client creation failed. Verify the database permissions and required fields.");
+      const details = error instanceof Error ? error.message : String(error);
+      setMessage(`Client creation failed: ${details}`);
     } finally {
       setSaving(false);
     }
@@ -221,6 +224,29 @@ export default function ClientsPage() {
                         />
                       </label>
                     ))}
+                    <div className="text-xs text-white/50">
+                      Height
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="8"
+                          value={form.heightFeet}
+                          onChange={(event) => setForm({ ...form, heightFeet: event.target.value })}
+                          placeholder="ft"
+                          className="w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-white"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="11"
+                          value={form.heightInches}
+                          onChange={(event) => setForm({ ...form, heightInches: event.target.value })}
+                          placeholder="in"
+                          className="w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-white"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -228,7 +254,6 @@ export default function ClientsPage() {
                   <h3 className="text-sm font-medium text-white">Training information</h3>
                   <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {[
-                      ["heightInches", "Height (inches)"],
                       ["startingWeight", "Starting weight (lb)"],
                       ["goal", "Primary goal"],
                       ["trainingExperience", "Training experience"],
@@ -237,7 +262,7 @@ export default function ClientsPage() {
                       <label key={key} className="text-xs text-white/50">
                         {label}
                         <input
-                          type={key === "heightInches" || key === "startingWeight" ? "number" : "text"}
+                          type={key === "startingWeight" ? "number" : "text"}
                           value={form[key as keyof FormState]}
                           onChange={(event) => setForm({ ...form, [key]: event.target.value })}
                           className="mt-2 w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white"
