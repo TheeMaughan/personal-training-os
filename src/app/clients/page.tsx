@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getSupabaseClient } from "@/lib/supabase";
-
 const navItems = [
   ["Dashboard", "/"],
   ["Clients", "/clients"],
@@ -79,17 +77,18 @@ export default function ClientsPage() {
     setMessage("");
 
     try {
-      const supabase = getSupabaseClient();
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id, first_name, last_name, goal, active, current_weight")
-        .order("last_name", { ascending: true });
+      const response = await fetch("/api/clients", { cache: "no-store" });
+      const result = await response.json();
 
-      if (error) throw error;
-      setClients(data ?? []);
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to load clients.");
+      }
+
+      setClients(result.clients ?? []);
     } catch (error) {
       console.error(error);
-      setMessage("We couldn't load the client roster. Check the Supabase table and permissions.");
+      const details = error instanceof Error ? error.message : String(error);
+      setMessage(`We couldn't load the client roster: ${details}`);
     } finally {
       setLoading(false);
     }
@@ -120,22 +119,16 @@ export default function ClientsPage() {
     setMessage("");
 
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.from("clients").insert({
-        first_name: form.firstName.trim(),
-        last_name: form.lastName.trim(),
-        date_of_birth: form.dateOfBirth || null,
-        height_inches: form.heightFeet || form.heightInches ? (Number(form.heightFeet || 0) * 12 + Number(form.heightInches || 0)) : null,
-        starting_weight: form.startingWeight ? Number(form.startingWeight) : null,
-        current_weight: form.startingWeight ? Number(form.startingWeight) : null,
-        goal: form.goal.trim() || null,
-        training_experience: form.trainingExperience.trim() || null,
-        activity_level: form.activityLevel.trim() || null,
-        notes: form.notes.trim() || null,
-        active: true,
+      const response = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
       });
+      const result = await response.json();
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to create client.");
+      }
 
       setForm(emptyForm);
       setFormOpen(false);
