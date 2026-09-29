@@ -137,7 +137,7 @@ export async function POST(request: Request) {
     }
 
     const admin = getAdminSupabase();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+    // Build the invite redirect from the live app request so a stale localhost\n    // NEXT_PUBLIC_SITE_URL value can never send production invites to localhost.\n    const requestOrigin = new URL(request.url).origin;\n    const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();\n    const siteUrl = configuredSiteUrl && !configuredSiteUrl.includes("localhost")\n      ? configuredSiteUrl.replace(/\\/$/, "")\n      : requestOrigin;
 
     const { data: invite, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
       data: {
