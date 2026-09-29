@@ -68,12 +68,9 @@ async function getAuthHeaders() {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.auth.getSession();
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 
   const accessToken = data.session?.access_token;
-
   if (!accessToken) {
     throw new Error("Your trainer session has expired. Please sign in again.");
   }
@@ -106,10 +103,7 @@ export default function ClientsPage() {
       });
       const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.error || "Unable to load clients.");
-      }
-
+      if (!response.ok) throw new Error(result.error || "Unable to load clients.");
       setClients(result.clients ?? []);
     } catch (error) {
       console.error(error);
@@ -136,8 +130,8 @@ export default function ClientsPage() {
   async function createClient(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!form.firstName.trim() || !form.lastName.trim()) {
-      setMessage("First name and last name are required.");
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
+      setMessage("First name, last name, and email are required to invite a client.");
       return;
     }
 
@@ -153,13 +147,11 @@ export default function ClientsPage() {
       });
       const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.error || "Unable to create client.");
-      }
+      if (!response.ok) throw new Error(result.error || "Unable to create client.");
 
       setForm(emptyForm);
       setFormOpen(false);
-      setMessage("Client created successfully.");
+      setMessage(`Client created and invitation email sent to ${form.email.trim()}.`);
       await loadClients();
     } catch (error) {
       console.error(error);
@@ -220,6 +212,7 @@ export default function ClientsPage() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-white/40">New client</p>
                   <h2 className="mt-1 text-xl font-semibold text-white">Create client profile</h2>
+                  <p className="mt-1 text-xs text-white/40">The client will receive an invitation email to create their password.</p>
                 </div>
                 <button type="button" onClick={() => setFormOpen(false)} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white/60 hover:bg-white/5">Cancel</button>
               </div>
@@ -235,9 +228,10 @@ export default function ClientsPage() {
                       ["dateOfBirth", "Date of birth", "date"],
                     ].map(([key, label, type]) => (
                       <label key={key} className="text-xs text-white/50">
-                        {label}
+                        {label}{key === "email" ? " *" : ""}
                         <input
                           type={type}
+                          required={key === "email"}
                           value={form[key as keyof FormState]}
                           onChange={(event) => setForm({ ...form, [key]: event.target.value })}
                           className="mt-2 w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-white"
@@ -247,24 +241,8 @@ export default function ClientsPage() {
                     <div className="text-xs text-white/50">
                       Height
                       <div className="mt-2 grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          max="8"
-                          value={form.heightFeet}
-                          onChange={(event) => setForm({ ...form, heightFeet: event.target.value })}
-                          placeholder="ft"
-                          className="w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-white"
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          max="11"
-                          value={form.heightInches}
-                          onChange={(event) => setForm({ ...form, heightInches: event.target.value })}
-                          placeholder="in"
-                          className="w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-white"
-                        />
+                        <input type="number" min="0" max="8" value={form.heightFeet} onChange={(event) => setForm({ ...form, heightFeet: event.target.value })} placeholder="ft" className="w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-white" />
+                        <input type="number" min="0" max="11" value={form.heightInches} onChange={(event) => setForm({ ...form, heightInches: event.target.value })} placeholder="in" className="w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-white" />
                       </div>
                     </div>
                   </div>
@@ -281,12 +259,7 @@ export default function ClientsPage() {
                     ].map(([key, label]) => (
                       <label key={key} className="text-xs text-white/50">
                         {label}
-                        <input
-                          type={key === "startingWeight" ? "number" : "text"}
-                          value={form[key as keyof FormState]}
-                          onChange={(event) => setForm({ ...form, [key]: event.target.value })}
-                          className="mt-2 w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white"
-                        />
+                        <input type={key === "startingWeight" ? "number" : "text"} value={form[key as keyof FormState]} onChange={(event) => setForm({ ...form, [key]: event.target.value })} className="mt-2 w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white" />
                       </label>
                     ))}
                   </div>
@@ -294,17 +267,12 @@ export default function ClientsPage() {
 
                 <label className="block text-xs text-white/50">
                   Trainer notes
-                  <textarea
-                    value={form.notes}
-                    onChange={(event) => setForm({ ...form, notes: event.target.value })}
-                    rows={4}
-                    className="mt-2 w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white"
-                  />
+                  <textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} rows={4} className="mt-2 w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none focus:border-white" />
                 </label>
 
                 <div className="flex justify-end">
                   <button type="submit" disabled={saving} className="rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-40">
-                    {saving ? "Creating..." : "Create Client"}
+                    {saving ? "Creating & sending invite..." : "Create Client & Send Invite"}
                   </button>
                 </div>
               </form>
@@ -351,7 +319,6 @@ export default function ClientsPage() {
               <h2 className="mt-1 text-xl font-semibold text-white">Client evaluation</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-white/50">A structured intake and assessment framework for the information a personal trainer would normally review. Sections stay collapsed until you open them.</p>
             </div>
-
             <div className="mt-5 space-y-2">
               {evaluationSections.map((section) => {
                 const isOpen = openEvaluation === section.title;
