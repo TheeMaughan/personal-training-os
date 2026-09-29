@@ -56,12 +56,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         }
 
         const role = result.role as Role;
-        if (role === "client" && !pathname.startsWith("/client")) {
+        if (role === "client" && pathname !== "/client" && !pathname.startsWith("/client/")) {
           router.replace("/client");
           return;
         }
 
-        if (role === "trainer" && pathname.startsWith("/client")) {
+        if (role === "trainer" && (pathname === "/client" || pathname.startsWith("/client/"))) {
           router.replace("/");
           return;
         }
