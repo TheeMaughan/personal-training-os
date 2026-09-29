@@ -116,6 +116,73 @@ export async function GET(request: Request) {
   }
 }
 
+export async function DELETE(request: Request) {
+  try {
+    const { supabase, user, error: authError } = await requireTrainer(request);
+
+    if (authError || !supabase || !user) {
+      return NextResponse.json({ error: authError }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const clientId = typeof body.id === "string" ? body.id : "";
+
+    if (!clientId) {
+      return NextResponse.json({ error: "Client ID is required." }, { status: 400 });
+    }
+
+    const admin = getAdminSupabase();
+    const { data: client, error: clientLookupError } = await admin
+      .from("clients")
+      .select("id, profile_id")
+      .eq("id", clientId)
+      .maybeSingle();
+
+    if (clientLookupError) {
+      return NextResponse.json({ error: clientLookupError.message }, { status: 400 });
+    }
+
+    if (!client) {
+      return NextResponse.json({ error: "Client not found." }, { status: 404 });
+    }
+
+    const { error: deleteClientError } = await admin
+      .from("clients")
+      .delete()
+      .eq("id", clientId);
+
+    if (deleteClientError) {
+      return NextResponse.json({ error: deleteClientError.message }, { status: 400 });
+    }
+
+    if (client.profile_id) {
+      const { error: deleteProfileError } = await admin
+        .from("profiles")
+        .delete()
+        .eq("id", client.profile_id);
+
+      if (deleteProfileError) {
+        return NextResponse.json({
+          error: `Client was deleted, but the account profile could not be removed: ${deleteProfileError.message}`,
+        }, { status: 500 });
+      }
+
+      const { error: deleteAuthError } = await admin.auth.admin.deleteUser(client.profile_id);
+
+      if (deleteAuthError) {
+        return NextResponse.json({
+          error: `Client profile was deleted, but the login account could not be removed: ${deleteAuthError.message}`,
+        }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ deleted: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { supabase, user, error: authError } = await requireTrainer(request);
