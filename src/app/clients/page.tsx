@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getSupabaseClient } from "@/lib/supabase";
+
 const navItems = [
   ["Dashboard", "/"],
   ["Clients", "/clients"],
@@ -62,6 +64,26 @@ const emptyForm: FormState = {
   notes: "",
 };
 
+async function getAuthHeaders() {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.auth.getSession();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const accessToken = data.session?.access_token;
+
+  if (!accessToken) {
+    throw new Error("Your trainer session has expired. Please sign in again.");
+  }
+
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+  };
+}
+
 export default function ClientsPage() {
   const [query, setQuery] = useState("");
   const [openEvaluation, setOpenEvaluation] = useState<string | null>(null);
@@ -77,7 +99,11 @@ export default function ClientsPage() {
     setMessage("");
 
     try {
-      const response = await fetch("/api/clients", { cache: "no-store" });
+      const headers = await getAuthHeaders();
+      const response = await fetch("/api/clients", {
+        cache: "no-store",
+        headers: { Authorization: headers.Authorization },
+      });
       const result = await response.json();
 
       if (!response.ok) {
@@ -119,9 +145,10 @@ export default function ClientsPage() {
     setMessage("");
 
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch("/api/clients", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(form),
       });
       const result = await response.json();
