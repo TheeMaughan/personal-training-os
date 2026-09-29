@@ -61,7 +61,8 @@ async function requireTrainer(request: Request) {
     return { ...auth, error: auth.error ?? "Authentication required." };
   }
 
-  const { data: profile, error } = await auth.supabase
+  const admin = getAdminSupabase();
+  const { data: profile, error } = await admin
     .from("profiles")
     .select("role")
     .eq("id", auth.user.id)
