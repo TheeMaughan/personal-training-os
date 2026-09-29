@@ -10,7 +10,9 @@ export function getSupabaseClient() {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!supabaseUrl || !supabasePublishableKey) {
-    throw new Error("Supabase environment variables are not configured.");
+    throw new Error(
+      "Supabase environment variables are missing from this deployment. Check the Vercel environment settings and redeploy."
+    );
   }
 
   supabaseClient = createClient(supabaseUrl, supabasePublishableKey);
