@@ -162,6 +162,34 @@ export default function ClientsPage() {
     }
   }
 
+  async function deleteClient(client: Client) {
+    const confirmed = window.confirm(
+      `Delete ${client.first_name} ${client.last_name}? This removes the client record and their login account. This is intended for test-account cleanup.`
+    );
+
+    if (!confirmed) return;
+
+    setMessage("");
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch("/api/clients", {
+        method: "DELETE",
+        headers,
+        body: JSON.stringify({ id: client.id }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) throw new Error(result.error || "Unable to delete client.");
+
+      setClients((current) => current.filter((item) => item.id !== client.id));
+      setMessage(`${client.first_name} ${client.last_name} was deleted. Their login account was removed too.`);
+    } catch (error) {
+      console.error(error);
+      const details = error instanceof Error ? error.message : String(error);
+      setMessage(`Client deletion failed: ${details}`);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-black text-white">
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-white/10 bg-black px-5 py-7 text-white lg:block">
@@ -300,13 +328,18 @@ export default function ClientsPage() {
               ) : (
                 <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10">
                   {filteredClients.map((client) => (
-                    <a key={client.id} href={`/clients/${client.id}`} className="flex items-center justify-between gap-4 bg-black px-4 py-4 transition hover:bg-white/5">
-                      <div>
+                    <div key={client.id} className="flex items-center justify-between gap-4 bg-black px-4 py-4 transition hover:bg-white/5">
+                      <a href={`/clients/${client.id}`} className="min-w-0 flex-1">
                         <div className="font-medium text-white">{client.first_name} {client.last_name}</div>
                         <div className="mt-1 text-xs text-white/40">{client.goal || "Goal not set"}{client.current_weight ? ` • ${client.current_weight} lb` : ""}</div>
+                      </a>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span className="rounded-full border border-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/50">{client.active ? "Active" : "Inactive"}</span>
+                        <button type="button" onClick={() => void deleteClient(client)} className="rounded-lg border border-white/15 px-3 py-2 text-xs font-medium text-white/55 hover:border-white/30 hover:text-white" aria-label={`Delete ${client.first_name} ${client.last_name}`}>
+                          Delete
+                        </button>
                       </div>
-                      <span className="rounded-full border border-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/50">{client.active ? "Active" : "Inactive"}</span>
-                    </a>
+                    </div>
                   ))}
                 </div>
               )}
