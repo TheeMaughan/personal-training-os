@@ -139,12 +139,9 @@ export async function POST(request: Request) {
     const admin = getAdminSupabase();
     // Build the invite redirect from the live app request so a stale localhost
     // NEXT_PUBLIC_SITE_URL value can never send production invites to localhost.
-    const requestOrigin = new URL(request.url).origin;
-    const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
     const siteUrl =
-      configuredSiteUrl && !configuredSiteUrl.includes("localhost")
-        ? configuredSiteUrl.replace(/\/$/, "")
-        : requestOrigin;
+      process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") ||
+      "https://personal-training-os.vercel.app";
 
     const { data: invite, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
       data: {
