@@ -54,7 +54,7 @@ export default function SetPasswordPage() {
 
       if (updateError) throw updateError;
 
-      router.replace("/");
+      router.replace("/client");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to set your password.");
