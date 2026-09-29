@@ -29,10 +29,10 @@ export default function ClientsPage() {
   }, [query]);
 
   return (
-    <main className="min-h-screen bg-[#2f241b] text-[#eadfce]">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-[#5a4533] bg-[#173d2a] px-5 py-7 text-white lg:block">
+    <main className="min-h-screen bg-black text-white">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-white/10 bg-black px-5 py-7 text-white lg:block">
         <div className="mb-10">
-          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#d7b98e]">Personal Training</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/50">Personal Training</div>
           <div className="mt-1 text-2xl font-semibold tracking-tight">Training OS</div>
         </div>
         <nav className="space-y-1">
@@ -40,7 +40,7 @@ export default function ClientsPage() {
             <a
               key={label}
               href={href}
-              className={`block rounded-lg px-3 py-2.5 text-sm transition ${label === "Clients" ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}`}
+              className={`block rounded-lg px-3 py-2.5 text-sm transition ${label === "Clients" ? "bg-white text-black" : "text-white/65 hover:bg-white/10 hover:text-white"}`}
             >
               {label}
             </a>
@@ -49,11 +49,11 @@ export default function ClientsPage() {
       </aside>
 
       <div className="lg:pl-64">
-        <div className="border-b border-[#5a4533] bg-[#392b21] px-5 py-3 lg:hidden">
-          <div className="text-lg font-semibold text-[#eadfce]">Training OS</div>
+        <div className="border-b border-white/10 bg-black px-5 py-3 lg:hidden">
+          <div className="text-lg font-semibold text-white">Training OS</div>
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
             {navItems.map(([label, href]) => (
-              <a key={label} href={href} className="whitespace-nowrap rounded-full border border-[#6a5240] px-3 py-1.5 text-xs text-[#eadfce]">
+              <a key={label} href={href} className="whitespace-nowrap rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/80">
                 {label}
               </a>
             ))}
@@ -61,47 +61,47 @@ export default function ClientsPage() {
         </div>
 
         <section className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
-          <header className="mb-8 flex flex-col gap-5 border-b border-[#5a4533] pb-7 sm:flex-row sm:items-end sm:justify-between">
+          <header className="mb-8 flex flex-col gap-5 border-b border-white/10 pb-7 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-medium text-[#d7b98e]">Client Management</p>
-              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[#f1e8da] sm:text-4xl">Clients</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#b8a897]">
+              <p className="text-sm font-medium text-white/50">Client Management</p>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Clients</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">
                 Manage your coaching roster, client profiles, programs, and training history.
               </p>
             </div>
             <button
               type="button"
               disabled
-              className="cursor-not-allowed rounded-lg bg-[#173d2a] px-4 py-2.5 text-sm font-medium text-white opacity-50"
+              className="cursor-not-allowed rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-black opacity-40"
               title="Client creation will be enabled with authentication."
             >
               + New Client
             </button>
           </header>
 
-          <section className="rounded-2xl border border-[#5a4533] bg-[#443327] p-5 shadow-sm">
+          <section className="rounded-2xl border border-white/10 bg-[#111111] p-5 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-[#f1e8da]">Client roster</h2>
-                <p className="mt-1 text-sm text-[#b8a897]">Search and manage active clients.</p>
+                <h2 className="text-lg font-semibold text-white">Client roster</h2>
+                <p className="mt-1 text-sm text-white/50">Search and manage active clients.</p>
               </div>
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search clients..."
-                className="w-full rounded-lg border border-[#6a5240] bg-[#33271f] px-3 py-2 text-sm text-[#f1e8da] outline-none placeholder:text-[#9f8f7e] focus:border-[#d7b98e] sm:max-w-xs"
+                className="w-full rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-white sm:max-w-xs"
               />
             </div>
 
-            <div className="mt-5 rounded-xl border border-dashed border-[#6a5240] bg-[#392b21] px-6 py-12 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#31533f] text-[#d7b98e]">
+            <div className="mt-5 rounded-xl border border-dashed border-white/15 bg-black px-6 py-12 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-black">
                 <span className="text-xl">+</span>
               </div>
-              <h3 className="mt-4 font-medium text-[#f1e8da]">{clients[0]?.name}</h3>
-              <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-[#b8a897]">
+              <h3 className="mt-4 font-medium text-white">{clients[0]?.name}</h3>
+              <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-white/50">
                 {clients[0]?.detail}
               </p>
-              <p className="mt-4 text-xs text-[#d7b98e]">
+              <p className="mt-4 text-xs text-white/35">
                 Client creation and Supabase data will be connected in the next step.
               </p>
             </div>
@@ -113,10 +113,10 @@ export default function ClientsPage() {
               ["Programs Assigned", "0", "No assignments yet"],
               ["Upcoming Check-ins", "0", "No check-ins scheduled"],
             ].map(([label, value, detail]) => (
-              <div key={label} className="rounded-2xl border border-[#5a4533] bg-[#443327] p-5 shadow-sm">
-                <div className="text-sm font-medium text-[#b8a897]">{label}</div>
-                <div className="mt-3 text-3xl font-semibold tracking-tight text-[#f1e8da]">{value}</div>
-                <div className="mt-2 text-xs text-[#9f8f7e]">{detail}</div>
+              <div key={label} className="rounded-2xl border border-white/10 bg-[#111111] p-5 shadow-sm">
+                <div className="text-sm font-medium text-white/50">{label}</div>
+                <div className="mt-3 text-3xl font-semibold tracking-tight text-white">{value}</div>
+                <div className="mt-2 text-xs text-white/30">{detail}</div>
               </div>
             ))}
           </section>
