@@ -66,10 +66,27 @@ async function requireTrainer(request: Request) {
     .from("profiles")
     .select("role")
     .eq("id", auth.user.id)
-    .single();
+    .maybeSingle();
 
-  if (error || profile?.role !== "trainer") {
-    return { ...auth, error: "Trainer access required." };
+  if (error) {
+    return {
+      ...auth,
+      error: `Trainer profile lookup failed: ${error.message}`,
+    };
+  }
+
+  if (!profile) {
+    return {
+      ...auth,
+      error: `No trainer profile found for authenticated user ${auth.user.id}.`,
+    };
+  }
+
+  if (profile.role !== "trainer") {
+    return {
+      ...auth,
+      error: `Authenticated user ${auth.user.id} has profile role "${profile.role}".`,
+    };
   }
 
   return { ...auth, error: null };
