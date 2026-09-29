@@ -18,6 +18,22 @@ function getServerSupabase(accessToken: string) {
   });
 }
 
+function getAdminSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceRoleKey) {
+    throw new Error("The Supabase service role key is not configured on the server.");
+  }
+
+  return createClient(url, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+
 async function getAuthenticatedClient(request: Request) {
   const authorization = request.headers.get("authorization");
   const accessToken = authorization?.startsWith("Bearer ")
@@ -25,25 +41,45 @@ async function getAuthenticatedClient(request: Request) {
     : null;
 
   if (!accessToken) {
-    return { supabase: null, error: "Authentication required." };
+    return { supabase: null, user: null, error: "Authentication required." };
   }
 
   const supabase = getServerSupabase(accessToken);
   const { data, error } = await supabase.auth.getUser(accessToken);
 
   if (error || !data.user) {
-    return { supabase: null, error: "Authentication required." };
+    return { supabase: null, user: null, error: "Authentication required." };
   }
 
-  return { supabase, error: null };
+  return { supabase, user: data.user, error: null };
+}
+
+async function requireTrainer(request: Request) {
+  const auth = await getAuthenticatedClient(request);
+
+  if (auth.error || !auth.supabase || !auth.user) {
+    return { ...auth, error: auth.error ?? "Authentication required." };
+  }
+
+  const { data: profile, error } = await auth.supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", auth.user.id)
+    .single();
+
+  if (error || profile?.role !== "trainer") {
+    return { ...auth, error: "Trainer access required." };
+  }
+
+  return { ...auth, error: null };
 }
 
 export async function GET(request: Request) {
   try {
-    const { supabase, error: authError } = await getAuthenticatedClient(request);
+    const { supabase, error: authError } = await requireTrainer(request);
 
     if (authError || !supabase) {
-      return NextResponse.json({ error: authError }, { status: 401 });
+      return NextResponse.json({ error: authError }, { status: 403 });
     }
 
     const { data, error } = await supabase
@@ -64,19 +100,66 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { supabase, error: authError } = await getAuthenticatedClient(request);
+    const { supabase, user, error: authError } = await requireTrainer(request);
 
-    if (authError || !supabase) {
-      return NextResponse.json({ error: authError }, { status: 401 });
+    if (authError || !supabase || !user) {
+      return NextResponse.json({ error: authError }, { status: 403 });
     }
 
     const body = await request.json();
+    const firstName = body.firstName?.trim();
+    const lastName = body.lastName?.trim();
+    const email = body.email?.trim().toLowerCase();
 
-    const { data, error } = await supabase
+    if (!firstName || !lastName || !email) {
+      return NextResponse.json(
+        { error: "First name, last name, and email are required to invite a client." },
+        { status: 400 }
+      );
+    }
+
+    const admin = getAdminSupabase();
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+
+    const { data: invite, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+      data: {
+        full_name: `${firstName} ${lastName}`.trim(),
+        role: "client",
+      },
+      redirectTo: `${siteUrl}/set-password`,
+    });
+
+    if (inviteError || !invite.user) {
+      return NextResponse.json(
+        { error: inviteError?.message || "Unable to send the client invitation." },
+        { status: 400 }
+      );
+    }
+
+    const { data: profile, error: profileError } = await admin
+      .from("profiles")
+      .upsert({
+        id: invite.user.id,
+        full_name: `${firstName} ${lastName}`.trim(),
+        email,
+        role: "client",
+      })
+      .select("id")
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json(
+        { error: profileError?.message || "Client account was invited, but the profile could not be created." },
+        { status: 500 }
+      );
+    }
+
+    const { data: client, error: clientError } = await admin
       .from("clients")
       .insert({
-        first_name: body.firstName?.trim(),
-        last_name: body.lastName?.trim(),
+        profile_id: profile.id,
+        first_name: firstName,
+        last_name: lastName,
         date_of_birth: body.dateOfBirth || null,
         height_inches:
           body.heightFeet || body.heightInches
@@ -93,13 +176,16 @@ export async function POST(request: Request) {
       .select("id, first_name, last_name, goal, active, current_weight")
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    if (clientError || !client) {
+      return NextResponse.json(
+        { error: clientError?.message || "Client account was invited, but the client profile could not be created." },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({ client: data }, { status: 201 });
+    return NextResponse.json({ client, invitationSent: true }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
