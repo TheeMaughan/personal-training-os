@@ -4,7 +4,7 @@ const navItems = [
   ["Programs", "/programs"],
   ["OPT Schedules", "/opt-schedules"],
   ["Exercises", "/exercises"],
-  ["Workouts", "/workouts"],
+  ["Workouts", "/workout-library"],
   ["Nutrition", "/nutrition"],
   ["Check-ins", "/check-ins"],
   ["Measurements", "/measurements"],
