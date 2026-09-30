@@ -39,10 +39,23 @@ export async function GET(req: NextRequest) {
 
   if (me) return NextResponse.json({ error: me.message }, { status: 500 });
 
+  const { data: equipmentRequirements, error: equipmentError } = exerciseIds.length
+    ? await db.from("exercise_equipment").select("exercise_id,equipment_name,required").in("exercise_id", exerciseIds)
+    : { data: [], error: null };
+  if (equipmentError) return NextResponse.json({ error: equipmentError.message }, { status: 500 });
+
+  const equipmentByExercise = new Map<string, any[]>();
+  for (const row of equipmentRequirements || []) {
+    if (!equipmentByExercise.has(row.exercise_id)) equipmentByExercise.set(row.exercise_id, []);
+    equipmentByExercise.get(row.exercise_id)!.push(row);
+  }
+
   return NextResponse.json({
     workouts: (workouts || []).map((w: any) => ({
       ...w,
-      master_workout_exercises: [...(w.master_workout_exercises || [])].sort((a: any, b: any) => a.exercise_order - b.exercise_order),
+      master_workout_exercises: [...(w.master_workout_exercises || [])]
+        .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
+        .map((row: any) => ({ ...row, equipment_requirements: equipmentByExercise.get(row.exercise_id) || [] })),
     })),
     exercises: exercises || [],
     exercise_muscles: muscles || [],
