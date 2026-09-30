@@ -25,6 +25,12 @@ type WorkoutExercise = {
   sets: WorkoutSet[];
 };
 
+type EquipmentMatch = { name:string; required:string[]; optional:string[]; missing:string[]; availableOptional:string[] };
+type AvailableExercise = {
+  id:string; name:string; category:string|null; primary_muscle_group:string|null; secondary_muscle_groups:string[]|null;
+  movement_pattern:string|null; difficulty:string|null; preference:string; instructions:string|null; setup:string|null; execution:string|null; video_url:string|null;
+  equipment: EquipmentMatch; availability:"available"|"near_match"|"unavailable";
+};
 type Workout = {
   id: string;
   workout_name: string;
@@ -43,6 +49,9 @@ export default function ClientDashboard() {
   const [startedAt] = useState(Date.now());
   const [elapsed, setElapsed] = useState(0);
   const [restUntil, setRestUntil] = useState<number | null>(null);
+  const [availableExercises, setAvailableExercises] = useState<AvailableExercise[]>([]);
+  const [nearMatches, setNearMatches] = useState<AvailableExercise[]>([]);
+  const [exerciseSearch, setExerciseSearch] = useState("");
 
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -72,6 +81,15 @@ export default function ClientDashboard() {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error ?? "Unable to load workout.");
         setWorkout(result.workout);
+        const exerciseResponse = await fetch("/api/client/exercises", {
+          headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
+          cache: "no-store",
+        });
+        const exerciseResult = await exerciseResponse.json();
+        if (exerciseResponse.ok) {
+          setAvailableExercises(exerciseResult.available || []);
+          setNearMatches(exerciseResult.nearMatches || []);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load workout.");
       } finally {
@@ -99,6 +117,24 @@ export default function ClientDashboard() {
     () => workout?.exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => set.completed).length, 0) ?? 0,
     [workout]
   );
+  const filteredAvailableExercises = useMemo(() => {
+    const q = exerciseSearch.trim().toLowerCase();
+    if (!q) return availableExercises;
+    return availableExercises.filter((exercise) =>
+      [exercise.name, exercise.category, exercise.primary_muscle_group, ...(exercise.secondary_muscle_groups || []), exercise.movement_pattern]
+        .filter(Boolean).join(" ").toLowerCase().includes(q)
+    );
+  }, [availableExercises, exerciseSearch]);
+
+  const filteredNearMatches = useMemo(() => {
+    const q = exerciseSearch.trim().toLowerCase();
+    if (!q) return nearMatches;
+    return nearMatches.filter((exercise) =>
+      [exercise.name, exercise.category, exercise.primary_muscle_group, ...(exercise.secondary_muscle_groups || []), exercise.movement_pattern]
+        .filter(Boolean).join(" ").toLowerCase().includes(q)
+    );
+  }, [nearMatches, exerciseSearch]);
+
   const totalSets = useMemo(
     () => workout?.exercises.reduce((sum, exercise) => sum + exercise.prescribed_sets, 0) ?? 0,
     [workout]
@@ -184,6 +220,53 @@ export default function ClientDashboard() {
             <button type="button" onClick={signOut} className="rounded-lg border border-white/15 px-4 py-2.5 text-sm font-medium text-white/75">Sign out</button>
           </div>
         </header>
+
+        <section className="mt-8 rounded-2xl border border-white/10 bg-[#111111] p-5 sm:p-7">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">Exercise Finder</div>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight">Exercises you can actually do</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-white/50">Training OS compares your exercise requirements against the equipment you told your trainer you have. Fully available exercises appear first; exercises missing one or two required items are shown separately.</p>
+            </div>
+            <input value={exerciseSearch} onChange={(e) => setExerciseSearch(e.target.value)} placeholder="Search exercises or muscles..." className="w-full rounded-lg border border-white/10 bg-black px-3 py-2.5 text-sm outline-none placeholder:text-white/30 sm:max-w-xs" />
+          </div>
+
+          <div className="mt-6">
+            <div className="flex items-center justify-between"><h3 className="font-medium">Available now</h3><span className="text-xs text-white/35">{filteredAvailableExercises.length} exercises</span></div>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {filteredAvailableExercises.map((exercise) => (
+                <article key={exercise.id} className="rounded-xl border border-white/10 bg-black p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div><h4 className="font-medium">{exercise.name}</h4><p className="mt-1 text-xs text-white/40">{exercise.primary_muscle_group || "Muscle not mapped"}{exercise.movement_pattern ? " • " + exercise.movement_pattern : ""}</p></div>
+                    {exercise.preference === "favorite" && <span className="rounded-full border border-white/20 px-2 py-1 text-[10px] text-white/60">★ Favorite</span>}
+                  </div>
+                  <div className="mt-4 text-xs text-white/50">
+                    <div><span className="text-white/30">Required: </span>{exercise.equipment.required.length ? exercise.equipment.required.join(", ") : "None"}</div>
+                    <div className="mt-1"><span className="text-white/30">Optional: </span>{exercise.equipment.optional.length ? exercise.equipment.optional.join(", ") : "None"}</div>
+                  </div>
+                </article>
+              ))}
+              {!filteredAvailableExercises.length && <p className="rounded-xl border border-white/10 p-5 text-sm text-white/40">No available exercises match your search.</p>}
+            </div>
+          </div>
+
+          <div className="mt-7 border-t border-white/10 pt-6">
+            <div className="flex items-center justify-between"><h3 className="font-medium">Almost available</h3><span className="text-xs text-white/35">{filteredNearMatches.length} exercises</span></div>
+            <p className="mt-1 text-xs text-white/40">These exercises are missing one or two required pieces of equipment.</p>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {filteredNearMatches.map((exercise) => (
+                <article key={exercise.id} className="rounded-xl border border-white/10 bg-black p-4">
+                  <h4 className="font-medium">{exercise.name}</h4>
+                  <p className="mt-1 text-xs text-white/40">{exercise.primary_muscle_group || "Muscle not mapped"}{exercise.movement_pattern ? " • " + exercise.movement_pattern : ""}</p>
+                  <div className="mt-4 text-xs"><span className="text-white/30">Missing: </span><span className="text-white/70">{exercise.equipment.missing.join(", ")}</span></div>
+                  {exercise.equipment.availableOptional.length > 0 && <div className="mt-1 text-xs text-white/40">Optional equipment you have: {exercise.equipment.availableOptional.join(", ")}</div>}
+                  <div className="mt-2 text-xs text-white/35">Required: {exercise.equipment.required.join(", ") || "None"}</div>
+                </article>
+              ))}
+              {!filteredNearMatches.length && <p className="rounded-xl border border-white/10 p-5 text-sm text-white/40">Nothing is missing by one or two pieces right now.</p>}
+            </div>
+          </div>
+        </section>
 
         <nav className="mt-5 flex gap-2 overflow-x-auto pb-1" aria-label="Client navigation">
           {["Overview", "Program", "Workouts", "Progress", "Check-ins"].map((item, index) => (
