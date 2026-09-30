@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 
-const nav = [[["Dashboard","/"],["Clients","/clients"],["Programs","/programs"],["OPT Schedules","/opt-schedules"],["Exercises","/exercises"],["Equipment","/equipment"],["Workouts","/workouts"],["Nutrition","/nutrition"],["Check-ins","/check-ins"],["Measurements","/measurements"]]];
+const nav = [["Dashboard","/"],["Clients","/clients"],["Programs","/programs"],["OPT Schedules","/opt-schedules"],["Exercises","/exercises"],["Equipment","/equipment"],["Workouts","/workouts"],["Nutrition","/nutrition"],["Check-ins","/check-ins"],["Measurements","/measurements"]];
 
 type Phase = { id: string; phase_number: number; name: string; level: string };
 type SchedulePhase = { id: string; phase_order: number; weeks: number; opt_phases: Phase };
@@ -125,3 +125,4 @@ export default function OptSchedulesPage() {
     </div>
     </div>
   </main>;
+}
