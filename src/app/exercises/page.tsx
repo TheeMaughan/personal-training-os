@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 
-const nav = [["Dashboard","/"],["Clients","/clients"],["Programs","/programs"],["Exercises","/exercises"],["Workouts","/workouts"],["Nutrition","/nutrition"],["Check-ins","/check-ins"],["Measurements","/measurements"]];
+const nav = [["Dashboard","/"],["Clients","/clients"],["Programs","/programs"],["OPT Schedules","/opt-schedules"],["Exercises","/exercises"],["Equipment","/equipment"],["Workouts","/workouts"],["Nutrition","/nutrition"],["Check-ins","/check-ins"],["Measurements","/measurements"]];
 
 type Exercise = {
   id:string; name:string; category:string|null; primary_muscle_group:string|null;
