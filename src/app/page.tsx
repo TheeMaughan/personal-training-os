@@ -2,6 +2,7 @@ const navItems = [
   ["Dashboard", "/"],
   ["Clients", "/clients"],
   ["Programs", "/programs"],
+  ["OPT Schedules", "/opt-schedules"],
   ["Exercises", "/exercises"],
   ["Workouts", "/workouts"],
   ["Nutrition", "/nutrition"],
