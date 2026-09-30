@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 
+const nav = [[["Dashboard","/"],["Clients","/clients"],["Programs","/programs"],["OPT Schedules","/opt-schedules"],["Exercises","/exercises"],["Equipment","/equipment"],["Workouts","/workouts"],["Nutrition","/nutrition"],["Check-ins","/check-ins"],["Measurements","/measurements"]]];
+
 type Phase = { id: string; phase_number: number; name: string; level: string };
 type SchedulePhase = { id: string; phase_order: number; weeks: number; opt_phases: Phase };
 type Schedule = { id: string; name: string; description: string | null; athlete_type: "normal" | "power"; active: boolean; opt_schedule_phases: SchedulePhase[] };
@@ -83,7 +85,7 @@ export default function OptSchedulesPage() {
     if (next) setRows([...rows, { phaseId: next.id, weeks: 4 }]);
   };
 
-  return <main className="min-h-screen bg-black text-white px-6 py-8 md:px-10">
+  return <main className="min-h-screen bg-black text-white"><aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-white/10 bg-black px-5 py-7 lg:block"><div className="mb-10"><div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/50">Personal Training</div><div className="mt-1 text-2xl font-semibold">Training OS</div></div><nav className="space-y-1">{nav.map(([label,href])=><a key={label} href={href} className={`block rounded-lg px-3 py-2.5 text-sm ${href==="/opt-schedules"?"bg-white text-black":"text-white/65 hover:bg-white/10 hover:text-white"}`}>{label}</a>)}</nav></aside><div className="lg:pl-64 px-6 py-8 md:px-10">
     <div className="mx-auto max-w-6xl">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div><p className="text-xs uppercase tracking-[0.2em] text-white/45">Training Methodology</p><h1 className="mt-2 text-3xl font-semibold">OPT Schedules</h1><p className="mt-2 max-w-2xl text-sm text-white/55">Build reusable phase sequences and set how many weeks each OPT phase lasts.</p></div>
@@ -121,5 +123,4 @@ export default function OptSchedulesPage() {
         </div>
       </section>
     </div>
-  </main>;
-}
+  </div></main>;
