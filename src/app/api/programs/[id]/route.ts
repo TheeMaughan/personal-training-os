@@ -22,7 +22,9 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{id:string}>}
  if(we)return NextResponse.json({error:we.message},{status:500});
  const {data:exercises,error:ee}=await db.from("exercises").select("id,name,category,primary_muscle_group,secondary_muscle_groups,movement_pattern,equipment,active").eq("active",true).order("name");
  if(ee)return NextResponse.json({error:ee.message},{status:500});
- return NextResponse.json({program,workouts:workouts||[],exercises:exercises||[]});
+ const {data:library,error:le}=await db.from("master_workouts").select("id,name,goal,opt_phase_number,description,notes,master_workout_exercises(id,exercise_id,exercise_order,sets,rep_min,rep_max,target_rir,rest_seconds,notes,exercises(name,primary_muscle_group,secondary_muscle_groups,movement_pattern))").eq("active",true).order("name");
+ if(le)return NextResponse.json({error:le.message},{status:500});
+ return NextResponse.json({program,workouts:workouts||[],exercises:exercises||[],workout_library:(library||[]).map((w:any)=>({...w,master_workout_exercises:[...(w.master_workout_exercises||[])].sort((a:any,b:any)=>a.exercise_order-b.exercise_order)}))});
 }
 export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){
  const db=await trainer(req); if(!db)return NextResponse.json({error:"Unauthorized"},{status:401});
@@ -33,6 +35,17 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>
   const {data:max}=await db.from("program_builder_workouts").select("workout_order").eq("program_id",id).order("workout_order",{ascending:false}).limit(1).maybeSingle();
   const {data,error}=await db.from("program_builder_workouts").insert({program_id:id,name,workout_order:(max?.workout_order||0)+1,description:b.description||null}).select("id").single();
   if(error)return NextResponse.json({error:error.message},{status:500}); return NextResponse.json({workout:data},{status:201});
+ }
+ if(action==="import_library_workout"){
+  const libraryId=String(b.library_workout_id||"");
+  const {data:source,error:se}=await db.from("master_workouts").select("id,name,description,master_workout_exercises(exercise_id,exercise_order,sets,rep_min,rep_max,target_rir,rest_seconds,notes)").eq("id",libraryId).eq("active",true).single();
+  if(se||!source)return NextResponse.json({error:"Master workout not found."},{status:404});
+  const {data:max}=await db.from("program_builder_workouts").select("workout_order").eq("program_id",id).order("workout_order",{ascending:false}).limit(1).maybeSingle();
+  const {data:created,error:ce}=await db.from("program_builder_workouts").insert({program_id:id,name:source.name,workout_order:(max?.workout_order||0)+1,description:source.description||null}).select("id,name,workout_order").single();
+  if(ce)return NextResponse.json({error:ce.message},{status:500});
+  const rows=(source.master_workout_exercises||[]).sort((a:any,b:any)=>a.exercise_order-b.exercise_order).map((r:any)=>({...r,workout_id:created.id}));
+  if(rows.length){const {error:xe}=await db.from("program_builder_exercises").insert(rows);if(xe){await db.from("program_builder_workouts").delete().eq("id",created.id).eq("program_id",id);return NextResponse.json({error:xe.message},{status:500});}}
+  return NextResponse.json({workout:created},{status:201});
  }
  if(action==="exercise"){
   const {data:w}=await db.from("program_builder_workouts").select("id,program_id").eq("id",b.workout_id).eq("program_id",id).single();
