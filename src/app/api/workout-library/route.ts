@@ -69,6 +69,127 @@ export async function POST(req: NextRequest) {
   const b = await req.json();
   const action = String(b.action || "");
 
+
+  if (action === "import_csv") {
+    const rows = Array.isArray(b.rows) ? b.rows.slice(0, 5000) : [];
+    if (!rows.length) return NextResponse.json({ error: "No CSV rows were supplied." }, { status: 400 });
+
+    const normalize = (value: unknown) => String(value ?? "").trim().toLowerCase().replace(/\\s+/g, " ");
+    const { data: existingWorkouts } = await db.from("master_workouts").select("id,name");
+    const { data: existingExercises } = await db.from("exercises").select("id,name").eq("active", true);
+
+    const workoutMap = new Map<string, string>();
+    for (const w of existingWorkouts || []) workoutMap.set(normalize(w.name), w.id);
+
+    const exerciseMap = new Map<string, { id: string; name: string }[]>();
+    for (const e of existingExercises || []) {
+      const key = normalize(e.name);
+      const list = exerciseMap.get(key) || [];
+      list.push({ id: e.id, name: e.name });
+      exerciseMap.set(key, list);
+    }
+
+    const createdWorkouts: Record<string, string> = {};
+    const skippedWorkouts: string[] = [];
+    const unmatchedExercises: { workout: string; exercise: string; row: number }[] = [];
+    const ambiguousExercises: { workout: string; exercise: string; row: number; matches: string[] }[] = [];
+    const invalidRows: { row: number; reason: string }[] = [];
+    let importedExercises = 0;
+
+    const grouped = new Map<string, any[]>();
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i] || {};
+      const workoutName = String(r.workout ?? r.Workout ?? "").trim();
+      const exerciseName = String(r.exercise ?? r.Exercise ?? "").trim();
+      if (!workoutName || !exerciseName) {
+        invalidRows.push({ row: i + 2, reason: "Workout and Exercise are required." });
+        continue;
+      }
+      const key = normalize(workoutName);
+      const list = grouped.get(key) || [];
+      list.push({ ...r, workoutName, exerciseName, sourceRow: i + 2 });
+      grouped.set(key, list);
+    }
+
+    for (const [workoutKey, workoutRows] of grouped) {
+      const first = workoutRows[0];
+      if (workoutMap.has(workoutKey)) {
+        skippedWorkouts.push(first.workoutName);
+        continue;
+      }
+
+      const phaseRaw = Number(first.opt_phase ?? first.OPT_Phase ?? first.phase ?? "");
+      const phase = Number.isFinite(phaseRaw) && phaseRaw >= 1 && phaseRaw <= 5 ? phaseRaw : null;
+      const { data: workout, error: workoutError } = await db.from("master_workouts").insert({
+        name: first.workoutName,
+        goal: String(first.goal ?? first.Goal ?? "").trim() || null,
+        opt_phase_number: phase,
+        description: String(first.description ?? first.Description ?? "").trim() || null,
+        notes: String(first.workout_notes ?? first.Workout_Notes ?? first.notes ?? first.Notes ?? "").trim() || null,
+      }).select("id").single();
+
+      if (workoutError || !workout) {
+        invalidRows.push({ row: first.sourceRow, reason: workoutError?.message || "Could not create workout." });
+        continue;
+      }
+
+      createdWorkouts[first.workoutName] = workout.id;
+      workoutMap.set(workoutKey, workout.id);
+
+      const exerciseRows: any[] = [];
+      for (let i = 0; i < workoutRows.length; i++) {
+        const r = workoutRows[i];
+        const matches = exerciseMap.get(normalize(r.exerciseName)) || [];
+        if (!matches.length) {
+          unmatchedExercises.push({ workout: first.workoutName, exercise: r.exerciseName, row: r.sourceRow });
+          continue;
+        }
+        if (matches.length > 1) {
+          ambiguousExercises.push({ workout: first.workoutName, exercise: r.exerciseName, row: r.sourceRow, matches: matches.map(m => m.name) });
+          continue;
+        }
+
+        const sets = Math.max(1, Math.min(20, Number(r.sets ?? r.Sets) || 3));
+        const repMin = Math.max(1, Math.min(100, Number(r.rep_min ?? r.Rep_Min ?? r.min_reps ?? r.Min_Reps) || 8));
+        const repMax = Math.max(repMin, Math.min(100, Number(r.rep_max ?? r.Rep_Max ?? r.max_reps ?? r.Max_Reps) || 12));
+        const rirValue = r.rir ?? r.RIR ?? r.target_rir ?? r.Target_RIR;
+        const restValue = r.rest_seconds ?? r.Rest_Seconds ?? r.rest ?? r.Rest;
+        const rir = rirValue === "" || rirValue == null ? null : Math.max(0, Math.min(10, Number(rirValue)));
+        const rest = restValue === "" || restValue == null ? null : Math.max(0, Math.min(1800, Number(restValue)));
+
+        exerciseRows.push({
+          workout_id: workout.id,
+          exercise_id: matches[0].id,
+          exercise_order: i + 1,
+          sets,
+          rep_min: repMin,
+          rep_max: repMax,
+          target_rir: Number.isFinite(rir as number) ? rir : null,
+          rest_seconds: Number.isFinite(rest as number) ? rest : null,
+          notes: String(r.exercise_notes ?? r.Exercise_Notes ?? r.notes ?? r.Notes ?? "").trim() || null,
+        });
+      }
+
+      if (exerciseRows.length) {
+        const { error } = await db.from("master_workout_exercises").insert(exerciseRows);
+        if (error) {
+          invalidRows.push({ row: first.sourceRow, reason: `Workout created but exercises could not be imported: ${error.message}` });
+        } else {
+          importedExercises += exerciseRows.length;
+        }
+      }
+    }
+
+    return NextResponse.json({
+      createdWorkouts: Object.keys(createdWorkouts).length,
+      importedExercises,
+      skippedWorkouts,
+      unmatchedExercises,
+      ambiguousExercises,
+      invalidRows,
+    });
+  }
+
   if (action === "workout") {
     const name = String(b.name || "").trim();
     if (!name) return NextResponse.json({ error: "Workout name is required." }, { status: 400 });
